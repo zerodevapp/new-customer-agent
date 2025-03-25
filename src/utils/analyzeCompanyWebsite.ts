@@ -9,31 +9,31 @@ export async function analyzeCompanyWebsite(email: string): Promise<CompanyInfo>
   try {
     const domain = email.split('@')[1]
     const url = `https://${domain}`
-    
+
     console.log(`Fetching website content from ${url}...`)
-    
+
     const response = await axios.get(url, {
       timeout: 10000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
     })
-    
+
     const html = response.data
     const $ = cheerio.load(html)
-    
+
     // Extract text content from the website
     const bodyText = $('body').text().replace(/\\s+/g, ' ').trim()
     const title = $('title').text().trim()
     const metaDescription = $('meta[name="description"]').attr('content') || ''
-    
+
     // Use only the first 2000 characters to avoid hitting token limits
     const truncatedContent = `
       Title: ${title}
       Description: ${metaDescription}
       Content: ${bodyText.substring(0, 2000)}
     `
-    
+
     // Use LLM to analyze the website content
     return await analyzeWithLLM(truncatedContent, domain)
   } catch (error) {
@@ -47,7 +47,7 @@ async function analyzeWithLLM(websiteContent: string, domain: string): Promise<C
     modelName: "gpt-3.5-turbo",
     temperature: 0
   })
-  
+
   const prompt = ChatPromptTemplate.fromTemplate(`
     You are an AI assistant that analyzes website content to extract company information.
     
@@ -71,17 +71,20 @@ async function analyzeWithLLM(websiteContent: string, domain: string): Promise<C
     {{"companyName": "Company Name", "category": "Category"}}
     
     If the category isn't specific or meaningful enough to mention in conversation (e.g., too generic or just "Web3"), set it to null.
+
+    Don't capitalize the category unless it's actually known to be capitalized.
+
     If you can't determine company name, use null.
   `)
-  
+
   const chain = prompt.pipe(model).pipe(new StringOutputParser())
-  
+
   try {
     const result = await chain.invoke({
       websiteContent,
       domain
     })
-    
+
     const parsed = JSON.parse(result)
     return {
       companyName: parsed.companyName || undefined,

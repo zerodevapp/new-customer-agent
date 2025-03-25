@@ -33,6 +33,16 @@ async function processNewCustomerEmail(emailBody: string): Promise<void> {
   console.log(`Email composed with subject: "${emailDetails.subject}"`)
   console.log(`Scheduled to send at: ${emailDetails.sendAt.toLocaleString()}`)
   
+  // Print the email body if in test mode
+  if (process.env.TEST_SEND_IMMEDIATELY === "true") {
+    console.log("\n--- EMAIL PREVIEW ---")
+    console.log(`To: ${emailDetails.to}`)
+    console.log(`Subject: ${emailDetails.subject}`)
+    console.log("\nBody:")
+    console.log(emailDetails.body)
+    console.log("--- END PREVIEW ---\n")
+  }
+  
   // Step 4: Schedule the email to be sent
   const scheduled = await scheduleEmail(emailDetails)
   

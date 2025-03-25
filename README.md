@@ -56,6 +56,24 @@ bun run src/index.ts "Customer email: customer@example.com
 Customer description: John Doe"
 ```
 
+### Testing locally
+
+For convenient testing, you can use the included test script:
+
+```bash
+# Make the script executable if needed
+chmod +x test.sh
+
+# Run a test with a specific email and optional name
+./test.sh customer@example.com "John Doe"
+```
+
+To send test emails immediately instead of waiting 24-48 hours:
+
+1. Set `TEST_SEND_IMMEDIATELY=true` in your `.env` file
+2. Run the test as normal
+3. Set it back to `false` for production use
+
 ## How It Works
 
 1. The agent is triggered when it receives a "New Customer" email.

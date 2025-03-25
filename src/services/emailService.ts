@@ -4,7 +4,13 @@ import { EmailDetails } from '../types'
 // Schedule an email to be sent at a specified time
 export async function scheduleEmail(emailDetails: EmailDetails): Promise<boolean> {
   try {
-    const { to, subject, body, sendAt } = emailDetails
+    let { to, subject, body, sendAt } = emailDetails
+    
+    // Override recipient with test email in test mode
+    if (process.env.TEST_SEND_IMMEDIATELY === "true" && process.env.TEST_EMAIL_RECIPIENT) {
+      console.log(`TEST MODE: Redirecting email from ${to} to ${process.env.TEST_EMAIL_RECIPIENT}`)
+      to = process.env.TEST_EMAIL_RECIPIENT
+    }
     
     console.log(`Scheduling email to ${to} for ${sendAt.toISOString()}`)
     
