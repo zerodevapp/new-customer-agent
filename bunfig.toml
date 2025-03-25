@@ -1,0 +1,9 @@
+[dev]
+watch = true
+
+[install]
+production = false
+freeze = false
+
+[test]
+coverage = true

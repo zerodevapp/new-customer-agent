@@ -1,0 +1,23 @@
+{
+  "name": "email-new-customers-agent",
+  "version": "0.1.0",
+  "description": "AI agent for emailing new ZeroDev customers",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir ./dist",
+    "start": "bun run dist/index.js",
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.43",
+    "langchain": "^0.3.19",
+    "axios": "^1.6.7",
+    "cheerio": "^1.0.0",
+    "@sendgrid/mail": "^7.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.25",
+    "bun-types": "latest"
+  }
+}
