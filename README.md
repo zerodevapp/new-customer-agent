@@ -84,9 +84,35 @@ To send test emails immediately instead of waiting 24-48 hours:
 6. It composes a personalized email based on the template.
 7. It schedules the email to be sent at a random time in the future (24-48 hours).
 
+## Setting up with Zapier
+
+### Webhook Server
+
+The project includes a webhook server that can receive notifications from Zapier:
+
+```bash
+# Run the webhook server
+./server.sh
+```
+
+By default, the server runs on port 3000. You can change this by setting the PORT environment variable.
+
+### Zapier Setup
+
+1. Create a new Zap in Zapier
+2. Set the trigger to "New Email" in your email app
+3. Filter emails with the subject "New Customer"
+4. Add a Webhook action step (POST)
+5. Point the webhook to your server URL (e.g., `https://your-server.com:3000` or use a service like ngrok for local testing)
+6. Test the webhook to see the request format
+7. Once you've confirmed the format, update the webhook.ts file to process emails correctly
+
 ## Environment Variables
 
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `SENDGRID_API_KEY`: Your SendGrid API key
 - `EMAIL_FROM`: The email address to send from (format: "Derek <email@example.com>")
 - `FOUNDER_NAME`: The founder's name (default: "Derek")
+- `PORT`: The port for the webhook server (default: 3000)
+- `TEST_SEND_IMMEDIATELY`: Set to "true" during testing to send emails immediately
+- `TEST_EMAIL_RECIPIENT`: Your email for receiving test emails (overrides recipient during testing)
