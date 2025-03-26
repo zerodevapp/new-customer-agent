@@ -116,3 +116,4 @@ By default, the server runs on port 3000. You can change this by setting the POR
 - `PORT`: The port for the webhook server (default: 3000)
 - `TEST_SEND_IMMEDIATELY`: Set to "true" during testing to send emails immediately
 - `TEST_EMAIL_RECIPIENT`: Your email for receiving test emails (overrides recipient during testing)
+- `AUDIT_EMAIL_RECIPIENT`: Email address to receive audit notifications about all processed customers and errors

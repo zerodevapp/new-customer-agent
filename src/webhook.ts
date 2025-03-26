@@ -1,4 +1,5 @@
 import { processNewCustomerEmail } from './index'
+import { sendAuditEmail } from './services/auditService'
 
 // Webhook server to handle incoming requests from Zapier
 const server = Bun.serve({
@@ -67,6 +68,13 @@ const server = Bun.serve({
           console.log(`[${new Date().toISOString()}] Successfully processed customer: ${email}`)
         } catch (error) {
           console.error(`[${new Date().toISOString()}] Error processing customer ${email}:`, error)
+          
+          // Send audit email about processing error
+          await sendAuditEmail('error', {
+            customer: { email, name },
+            error,
+            originalEmail: customerEmail
+          })
         }
       }, 0)
       
