@@ -1,120 +1,121 @@
-// Enhanced debug webhook server that handles authentication and logs requests
+// Enhanced debug webhook server with low-level request capture
 
 const server = Bun.serve({
   port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
   async fetch(req) {
     // Log the request details
-    console.log('------- NEW REQUEST -------')
+    console.log('\n============= NEW REQUEST =============')
+    console.log(`Timestamp: ${new Date().toISOString()}`)
     console.log(`Method: ${req.method}`)
     console.log(`URL: ${req.url}`)
     
-    // Check for authentication
-    const authHeader = req.headers.get('authorization') || ''
-    if (authHeader.startsWith('Basic ')) {
-      const base64Credentials = authHeader.split(' ')[1]
-      const credentials = atob(base64Credentials)
-      const [username, password] = credentials.split(':')
-      
-      console.log(`Authentication: Username=${username}, Password=${password.replace(/./g, '*')}`)
-      
-      // This is just for logging - in production you'd validate against actual credentials
-      console.log('Authentication Status: ' + (username === 'test_username' && password === 'test_password' ? 'Valid' : 'Invalid'))
-    } else {
-      console.log('No authentication provided')
+    // Create a log function that handles undefined values
+    const logValue = (name: string, value: any) => {
+      const output = value === undefined ? 'undefined' : 
+                     value === null ? 'null' :
+                     typeof value === 'string' ? `"${value}"` : 
+                     `${value}`
+      console.log(`${name}: ${output}`)
     }
     
-    // Log headers
-    console.log('Headers:')
+    // Check for basic authentication
+    const authHeader = req.headers.get('authorization') || ''
+    if (authHeader.startsWith('Basic ')) {
+      try {
+        const base64Credentials = authHeader.split(' ')[1]
+        const credentials = atob(base64Credentials)
+        const [username, password] = credentials.split(':')
+        console.log(`Authentication: Username="${username}", Password=<redacted>`)
+      } catch (e) {
+        console.log(`Authentication: Error decoding (${e.message})`)
+      }
+    }
+    
+    // Log all headers
+    console.log('\nRequest Headers:')
     for (const [key, value] of req.headers.entries()) {
-      if (key !== 'authorization') { // Don't log auth header again
+      // Skip logging the full authorization header
+      if (key.toLowerCase() === 'authorization') {
+        console.log(`  ${key}: <redacted>`)
+      } else {
         console.log(`  ${key}: ${value}`)
       }
     }
     
-    // Handle empty requests (like Zapier connection tests)
-    const contentLength = parseInt(req.headers.get('content-length') || '0')
-    if (contentLength === 0) {
-      console.log('Empty request body (likely a connection test)')
-      console.log('------- END REQUEST -------')
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Connection test successful' 
-      }), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 200
-      })
-    }
-    
-    // Try to log the body based on content type
-    const contentType = req.headers.get('content-type') || ''
-    console.log(`Content-Type: ${contentType}`)
+    // Get reference to request data using multiple methods
+    console.log('\nCapturing request body...')
     
     try {
-      // Always read the raw text first
-      const clonedReq = req.clone()
-      const rawBody = await clonedReq.text()
-      console.log('Raw Body:')
-      console.log(rawBody)
-      console.log(`Body Length: ${rawBody.length} bytes`)
+      // Clone the request for different body reading methods
+      const textReq = req.clone()
+      const bufferReq = req.clone()
       
-      // Try to parse as JSON if applicable
-      if (contentType.includes('application/json') && rawBody.trim()) {
-        try {
-          const jsonBody = JSON.parse(rawBody)
-          console.log('Parsed JSON Body:')
-          console.log(JSON.stringify(jsonBody, null, 2))
+      // 1. Try reading as text
+      let bodyText = ''
+      try {
+        bodyText = await textReq.text()
+        console.log(`Raw body text (${bodyText.length} bytes):`)
+        console.log(bodyText || '(empty string)')
+      } catch (e) {
+        console.log(`Error reading body as text: ${e.message}`)
+      }
+      
+      // 2. Try reading as ArrayBuffer for raw bytes analysis
+      try {
+        const buffer = await bufferReq.arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        console.log(`\nRaw body bytes (${bytes.length} bytes):`);
+        
+        if (bytes.length > 0) {
+          // Print first 100 bytes in hex
+          const hex = Array.from(bytes.slice(0, Math.min(100, bytes.length)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join(' ')
+          console.log(`Hex: ${hex}${bytes.length > 100 ? ' ...' : ''}`)
           
-          // Examine the structure more deeply
-          console.log('JSON Structure:')
-          const examine = (obj, path = '') => {
-            if (!obj || typeof obj !== 'object') return
-            
-            for (const [key, value] of Object.entries(obj)) {
-              const currentPath = path ? `${path}.${key}` : key
-              const valueType = typeof value
-              const preview = valueType === 'string' ? 
-                (value.length > 50 ? `"${value.substring(0, 50)}..."` : `"${value}"`) : 
-                value
-              
-              console.log(`- ${currentPath}: (${valueType}) ${preview}`)
-              
-              // Recurse into objects (but not arrays to avoid huge output)
-              if (valueType === 'object' && value !== null && !Array.isArray(value)) {
-                examine(value, currentPath)
-              }
-            }
-          }
-          
-          examine(jsonBody)
-        } catch (jsonError) {
-          console.log('Error parsing JSON:', jsonError.message)
+          // Try to show as ASCII
+          const ascii = Array.from(bytes.slice(0, Math.min(100, bytes.length)))
+            .map(b => b >= 32 && b < 127 ? String.fromCharCode(b) : '.')
+            .join('')
+          console.log(`ASCII: ${ascii}${bytes.length > 100 ? ' ...' : ''}`)
+        } else {
+          console.log('(empty buffer)')
         }
-      } else if (contentType.includes('application/x-www-form-urlencoded')) {
-        // Handle form data
+      } catch (e) {
+        console.log(`Error reading body as buffer: ${e.message}`)
+      }
+      
+      // 3. Parse body if it's present and appears to be JSON
+      if (bodyText && bodyText.trim() && bodyText.trim().startsWith('{')) {
         try {
-          const params = new URLSearchParams(rawBody)
-          console.log('Form Data:')
-          for (const [key, value] of params.entries()) {
-            console.log(`- ${key}: ${value}`)
-          }
-        } catch (formError) {
-          console.log('Error parsing form data:', formError.message)
+          const jsonBody = JSON.parse(bodyText)
+          console.log('\nParsed JSON:')
+          console.log(JSON.stringify(jsonBody, null, 2))
+        } catch (e) {
+          console.log(`Error parsing JSON: ${e.message}`)
         }
       }
     } catch (error) {
-      console.log('Error reading body:', error.message)
-      console.log(error.stack)
+      console.log(`Error reading request body: ${error.message}`)
     }
     
-    console.log('------- END REQUEST -------')
+    // Let's directly examine the test content that should be coming from Zapier
+    console.log('\nTest data that we expect from Zapier:')
+    console.log('Customer email: test@example.com\nCustomer description: Test User')
     
-    // Always return a 200 success response for debugging
+    console.log('\nPlease update your Zapier action to send proper data with email body')
+    console.log('============= END REQUEST =============\n')
+    
+    // Send a detailed response
     return new Response(JSON.stringify({ 
       success: true, 
-      requestReceived: true,
-      message: 'Debug webhook received request and logged details. Check server logs for more information.' 
-    }), {
+      received: new Date().toISOString(),
+      info: "Test connection successful. Configure Zapier to send email data with the proper format.",
+      expected_format: {
+        "body": "Customer email: customer@example.com\nCustomer description: Customer Name"
+      },
+      note: "Check server logs for more information."
+    }, null, 2), {
       headers: { 'Content-Type': 'application/json' },
       status: 200
     })
@@ -123,4 +124,4 @@ const server = Bun.serve({
 
 console.log(`Debug webhook server listening on port ${server.port}`)
 console.log(`Ready to receive requests from Zapier!`)
-console.log(`Once you see the request format, we can update the webhook to process emails.`)
+console.log(`Make sure Zapier is properly configured to include the email body.`)
