@@ -1,4 +1,4 @@
-// Simple debug webhook server that logs incoming requests
+// Enhanced debug webhook server that logs incoming requests in more detail
 
 const server = Bun.serve({
   port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
@@ -19,25 +19,54 @@ const server = Bun.serve({
     console.log(`Content-Type: ${contentType}`)
     
     try {
-      let body = 'Unable to parse body'
-      if (contentType.includes('application/json')) {
-        // Clone the request to avoid consuming the body
-        const clonedReq = req.clone()
-        const json = await clonedReq.json()
-        body = JSON.stringify(json, null, 2)
-      } else if (contentType.includes('application/x-www-form-urlencoded')) {
-        const clonedReq = req.clone()
-        const formData = await clonedReq.formData()
-        body = JSON.stringify(Object.fromEntries(formData.entries()), null, 2)
-      } else {
-        const clonedReq = req.clone()
-        body = await clonedReq.text()
-      }
+      // Always read the raw text first
+      const clonedReq = req.clone()
+      const rawBody = await clonedReq.text()
+      console.log('Raw Body:')
+      console.log(rawBody)
+      console.log(`Body Length: ${rawBody.length} bytes`)
       
-      console.log('Body:')
-      console.log(body)
+      // Try to parse as JSON if applicable
+      if (contentType.includes('application/json') && rawBody) {
+        try {
+          const jsonBody = JSON.parse(rawBody)
+          console.log('Parsed JSON Body:')
+          console.log(JSON.stringify(jsonBody, null, 2))
+          
+          // Log key properties we might be interested in
+          console.log('Notable Properties:')
+          console.log('- body:', jsonBody.body)
+          console.log('- email_body:', jsonBody.email_body)
+          console.log('- content:', jsonBody.content)
+          console.log('- data:', jsonBody.data)
+          console.log('- html:', jsonBody.html)
+          console.log('- text:', jsonBody.text)
+          console.log('- subject:', jsonBody.subject)
+          console.log('- from:', jsonBody.from)
+        } catch (jsonError) {
+          console.log('Error parsing JSON:', jsonError.message)
+        }
+      } else if (contentType.includes('application/x-www-form-urlencoded')) {
+        // For form data, recreate request and parse
+        const formReq = new Request(req.url, {
+          method: req.method,
+          headers: req.headers,
+          body: rawBody
+        })
+        
+        try {
+          const formData = await formReq.formData()
+          console.log('Form Data:')
+          for (const [key, value] of formData.entries()) {
+            console.log(`- ${key}: ${value}`)
+          }
+        } catch (formError) {
+          console.log('Error parsing form data:', formError.message)
+        }
+      }
     } catch (error) {
-      console.log('Error parsing body:', error.message)
+      console.log('Error reading body:', error.message)
+      console.log(error.stack)
     }
     
     console.log('------- END REQUEST -------')
@@ -45,7 +74,7 @@ const server = Bun.serve({
     // Always return a 200 success response for debugging
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Debug webhook received request and logged details' 
+      message: 'Debug webhook received request and logged details. Check server logs for more information.' 
     }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200
