@@ -67,11 +67,14 @@ async function main(): Promise<void> {
   await processNewCustomerEmail(emailBody)
 }
 
-// Run the main function
-main().catch(error => {
-  console.error('Error in main function:', error)
-  process.exit(1)
-})
+// Only run the main function if this file is executed directly (not imported)
+// Check if this is the main module being run
+if (import.meta.url === Bun.main) {
+  main().catch(error => {
+    console.error('Error in main function:', error)
+    process.exit(1)
+  })
+}
 
 // Export the processNewCustomerEmail function for potential use in other contexts (e.g., API endpoints)
 export { processNewCustomerEmail }
