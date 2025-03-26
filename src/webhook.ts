@@ -59,15 +59,16 @@ const server = Bun.serve({
       // Format the data in the expected format for our processor
       const customerEmail = `Customer email: ${email}\nCustomer description: ${name || ''}`
       
-      // Process the customer email asynchronously
-      // We don't await this to respond quickly to Zapier
-      processNewCustomerEmail(customerEmail)
-        .then(() => {
+      // Process the customer email in a separate async context
+      // to respond quickly to Zapier
+      setTimeout(async () => {
+        try {
+          await processNewCustomerEmail(customerEmail)
           console.log(`[${new Date().toISOString()}] Successfully processed customer: ${email}`)
-        })
-        .catch(error => {
+        } catch (error) {
           console.error(`[${new Date().toISOString()}] Error processing customer ${email}:`, error)
-        })
+        }
+      }, 0)
       
       // Return success response immediately
       return new Response(JSON.stringify({

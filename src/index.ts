@@ -28,7 +28,7 @@ async function processNewCustomerEmail(emailBody: string): Promise<void> {
   }
   
   // Step 3: Compose a personalized email
-  const emailDetails = composeEmail(customer, companyInfo)
+  const emailDetails = await composeEmail(customer, companyInfo)
   
   console.log(`Email composed with subject: "${emailDetails.subject}"`)
   console.log(`Scheduled to send at: ${emailDetails.sendAt.toLocaleString()}`)

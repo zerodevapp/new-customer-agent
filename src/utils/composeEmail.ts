@@ -1,12 +1,62 @@
 import { Customer, CompanyInfo, EmailDetails } from '../types'
+import { ChatOpenAI } from "@langchain/openai"
+import { ChatPromptTemplate } from "@langchain/core/prompts"
+import { StringOutputParser } from "@langchain/core/output_parsers"
 
-export function composeEmail(customer: Customer, companyInfo: CompanyInfo): EmailDetails {
+// Function to determine appropriate greeting using AI
+async function getAIGreeting(name: string | undefined): Promise<string> {
+  if (!name) return 'Hi there,'
+  
+  try {
+    const model = new ChatOpenAI({
+      modelName: "gpt-4o",
+      temperature: 0
+    })
+    
+    const prompt = ChatPromptTemplate.fromTemplate(`
+      You are an AI assistant that analyzes names to determine appropriate email greetings.
+      
+      Customer name: {name}
+      
+      Please determine if this appears to be:
+      1. A personal name (like "John Smith")
+      2. A company or team name (like "Acme Corp" or "The DevOps Team")
+      
+      If it's a personal name, extract the appropriate first name to use in a greeting.
+      If it's a company/team name or if you're unsure, use a generic greeting.
+      
+      IMPORTANT: 
+      - Don't explain your reasoning
+      - Don't use markdown or formatting
+      - Don't include quotes around your response unless they're part of the greeting
+      - Return ONLY the exact greeting text
+      
+      Respond with ONLY a greeting in one of these formats:
+      For personal names: Hi FirstName,
+      For company names or unclear: Hi there,
+    `)
+    
+    const chain = prompt.pipe(model).pipe(new StringOutputParser())
+    
+    const result = await chain.invoke({
+      name
+    })
+    
+    // Clean up any extra whitespace and ensure proper format
+    return result.trim()
+  } catch (error) {
+    console.error("Error generating AI greeting:", error)
+    // Fall back to simple greeting if there's an error
+    return name ? `Hi ${name.split(' ')[0]},` : 'Hi there,'
+  }
+}
+
+export async function composeEmail(customer: Customer, companyInfo: CompanyInfo): Promise<EmailDetails> {
   const { email, name } = customer
   const { companyName, category } = companyInfo
 
-  // Determine greeting
-  const firstName = name ? name.split(' ')[0] : 'there'
-  const greeting = name ? `Hi ${firstName},` : 'Hi there,'
+  // Determine greeting using AI
+  const greeting = await getAIGreeting(name)
 
   // Calculate random send time (24-48 hours from now)
   const sendAt = getRandomFutureTime(24, 48)

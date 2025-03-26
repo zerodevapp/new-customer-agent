@@ -44,7 +44,7 @@ export async function analyzeCompanyWebsite(email: string): Promise<CompanyInfo>
 
 async function analyzeWithLLM(websiteContent: string, domain: string): Promise<CompanyInfo> {
   const model = new ChatOpenAI({
-    modelName: "gpt-3.5-turbo",
+    modelName: "gpt-4o",
     temperature: 0
   })
 
@@ -67,14 +67,16 @@ async function analyzeWithLLM(websiteContent: string, domain: string): Promise<C
     1. The company name (extract it if present, otherwise use the domain name without '.com' etc.)
     2. A specific category that describes what the company does (must be specific enough that someone could genuinely say "I'm very into [category]")
     
-    Respond in the following JSON format only:
-    {{"companyName": "Company Name", "category": "Category"}}
+    IMPORTANT: Your response MUST be valid JSON without any explanations, markdown formatting, or backticks.
+    
+    Respond ONLY in this exact JSON format:
+    {{"companyName": "COMPANY_NAME_HERE", "category": "CATEGORY_HERE"}}
     
     If the category isn't specific or meaningful enough to mention in conversation (e.g., too generic or just "Web3"), set it to null.
-
     Don't capitalize the category unless it's actually known to be capitalized.
-
     If you can't determine company name, use null.
+    
+    Do not include any text before or after the JSON object. Return only the JSON.
   `)
 
   const chain = prompt.pipe(model).pipe(new StringOutputParser())
